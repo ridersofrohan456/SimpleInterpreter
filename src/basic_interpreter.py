@@ -5,6 +5,7 @@ from builtins import *
 
 INTEGER = 'INTEGER'
 PLUS = 'PLUS'
+MINUS = 'MINUS'
 EOF = 'EOF'
 
 
@@ -40,9 +41,30 @@ class Interpreter(object):
         self.pos = 0
         # current token instance
         self.current_token = None
+        self.current_char = self.text[self.pos]
 
     def error(self):
         raise Exception('Error parsing input')
+
+    def move_forward(self):
+        """Advances the 'pos' pointer and sets the current_char variable"""
+        self.pos += 1
+        if self.pos > len(self.text) - 1:
+            self.current_char = None
+        else:
+            self.current_char = self.text[self.pos]
+
+    def skip_over_whitespace(self):
+        while self.current_char is not None and self.current_char.isspace():
+            self.move_forward()
+
+    def integer(self):
+        """Return a (multi-digit) int consumed from input"""
+        result = ''
+        while self.current_char is not None and self.current_char.isdigit():
+            result += self.current_char
+            self.move_forward()
+        return int(result)
 
     def get_next_token(self):
         """Lexical analyzer (aka tokenizer)
@@ -52,27 +74,25 @@ class Interpreter(object):
 
         :return: token
         """
-        text = self.text
+        while self.current_char is not None:
+            if self.current_char.isspace():
+                self.skip_over_whitespace()
+                continue
 
-        # if self.pos is past the end of sentence, return EOF
-        if self.pos > len(text) - 1:
-            return Token(EOF, None)
+            if self.current_char.isdigit():
+                return Token(INTEGER, self.integer())
 
-        # get the char at the self.pos position and decide what token to create based on the given character
-        current_char = text[self.pos]
+            if self.current_char == '+':
+                self.move_forward()
+                return Token(PLUS, '+')
 
-        # If character is a digit, convert to integer token and increment pos
-        if current_char.isdigit():
-            token = Token(INTEGER, int(current_char))
-            self.pos += 1
-            return token
+            if self.current_char == '-':
+                self.move_forward()
+                return Token(MINUS, '-')
 
-        # If character is a digit, convert to 'PLUS' token and increment pos
-        if current_char == '+':
-            token = Token(PLUS, current_char)
-            self.pos += 1
-            return token
-        self.error()
+            self.error()
+
+        return Token(EOF, None)
 
     def consume(self, token_type):
         # compare current token type with the passed token type and if they match
@@ -84,24 +104,34 @@ class Interpreter(object):
             self.error()
 
     def expr(self):
-        """expr -> INTEGER PLUS INTEGER """
+        """ Parser / Interpreter
+
+        expr -> INTEGER PLUS INTEGER
+        expr -> INTEGER MINUS INTEGER
+
+        """
         # set current token to first token from input
         self.current_token = self.get_next_token()
 
-        # Expect current token to be a single digit integer
+        # Expect current token to be an integer
         left = self.current_token
         self.consume(INTEGER)
 
-        # Expect current token to be a '+' token
+        # Expect current token to be a '+' OR '-'
         operation = self.current_token
-        self.consume(PLUS)
+        if operation.type == PLUS:
+            self.consume(PLUS)
+        else:
+            self.consume(MINUS)
 
-        # Expect current token to be a single digit integer
+        # Expect current token to be an integer
         right = self.current_token
         self.consume(INTEGER)
 
-
-        result = left.value + right.value
+        if operation.type == PLUS:
+            result = left.value + right.value
+        else:
+            result = left.value - right.value
         return result
 
 
@@ -120,5 +150,5 @@ def main():
         print(result)
 
 
-if __name__== '__main__':
+if __name__ == '__main__':
     main()
