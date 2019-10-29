@@ -6,6 +6,8 @@ from builtins import *
 INTEGER = 'INTEGER'
 PLUS = 'PLUS'
 MINUS = 'MINUS'
+MULTI = 'MULTI'
+DIV = 'DIV'
 EOF = 'EOF'
 
 
@@ -90,6 +92,14 @@ class Interpreter(object):
                 self.move_forward()
                 return Token(MINUS, '-')
 
+            if self.current_char == '*':
+                self.move_forward()
+                return Token(MULTI, '*')
+
+            if self.current_char == '/':
+                self.move_forward()
+                return Token(DIV, '/')
+
             self.error()
 
         return Token(EOF, None)
@@ -103,35 +113,28 @@ class Interpreter(object):
         else:
             self.error()
 
+    def term(self):
+        token = self.current_token
+        self.consume(INTEGER)
+        return token.value
+
     def expr(self):
         """ Parser / Interpreter
-
-        expr -> INTEGER PLUS INTEGER
-        expr -> INTEGER MINUS INTEGER
 
         """
         # set current token to first token from input
         self.current_token = self.get_next_token()
 
-        # Expect current token to be an integer
-        left = self.current_token
-        self.consume(INTEGER)
+        result = self.term()
 
-        # Expect current token to be a '+' OR '-'
-        operation = self.current_token
-        if operation.type == PLUS:
-            self.consume(PLUS)
-        else:
-            self.consume(MINUS)
+        while self.current_token.type in (PLUS, MINUS):
+            if self.current_token.type == PLUS:
+                self.consume(PLUS)
+                result += self.term()
+            elif self.current_token.type == MINUS:
+                self.consume(MINUS)
+                result -= self.term()
 
-        # Expect current token to be an integer
-        right = self.current_token
-        self.consume(INTEGER)
-
-        if operation.type == PLUS:
-            result = left.value + right.value
-        else:
-            result = left.value - right.value
         return result
 
 
